@@ -1,5 +1,5 @@
-# Use Python slim image
-FROM python:3.9-slim
+# Use Python 3.11 (Required for latest yt-dlp)
+FROM python:3.11-slim
 
 # Install system dependencies
 # - ffmpeg: for audio conversion
