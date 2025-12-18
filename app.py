@@ -26,7 +26,7 @@ def convert_video():
     if not os.path.exists(download_folder):
         os.makedirs(download_folder)
 
-    # Unique filename
+    # Unique filename to prevent collisions between users
     file_id = str(uuid.uuid4())
     
     # Configure yt-dlp
@@ -38,24 +38,24 @@ def convert_video():
             'preferredcodec': fmt,
             'preferredquality': '192',
         }],
-        'extractor_args': {
-            'youtube': {
-                'player_client': ['ios'],
-            }
-        },
         'quiet': True,
         'noplaylist': True,
     }
 
+    if os.path.exists('cookies.txt'):
+        ydl_opts['cookiefile'] = 'cookies.txt'
+
     try:
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+            # Attempt to download
             info = ydl.extract_info(video_url, download=True)
             title = info.get('title', 'audio')
             
-            # The expected file after conversion
+            # The expected file path after FFmpeg conversion
             expected_filename = f"{download_folder}/{file_id}.{fmt}"
             
             if os.path.exists(expected_filename):
+                # Send the file back to the user
                 return send_file(
                     expected_filename, 
                     as_attachment=True, 
@@ -63,10 +63,17 @@ def convert_video():
                     mimetype=f"audio/{fmt}"
                 )
             else:
-                return jsonify({"error": "File conversion failed - File not found"}), 500
+                return jsonify({"error": "File conversion failed - File not found on server"}), 500
 
     except Exception as e:
-        return jsonify({"error": str(e)}), 500
+        error_msg = str(e)
+        print(f"Error: {error_msg}") # Log to Render console
+        
+        # Friendly error for the frontend
+        if "Sign in" in error_msg:
+            return jsonify({"error": "YouTube blocked the server (Bot Detection). Cookies required."}), 500
+        
+        return jsonify({"error": error_msg}), 500
 
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5000))
